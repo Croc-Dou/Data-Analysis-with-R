@@ -1,0 +1,173 @@
+---
+title: "Exploratory Analysis for U.S. Crime Statistics in 1999-2004"
+author: "Doudou Zhang"
+output: rmarkdown::github_document
+---
+
+# Clear the workspace and upload libraries
+```{r}
+rm(list = ls())
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+```
+
+# import the dataset
+
+In this mini report, I will use the crime statistics in large U.S. cities for 2009-2014. This dataset is obtained from the Uniform Crime Reports (UCR) published by the FBI (https://ucr.fbi.gov/crime-in-the-u.s/2014/crime-in-the-u.s.-2014). This file includes the number of crime occurrences per population (crime rates) and the number of police officers killed or assaulted in the line of duty.
+
+```{r}
+crimes <- read_excel("~/Desktop/Spring2/DS/session2/Crimes1999-2014.xlsx")
+crimes
+glimpse(crimes)
+```
+# Data Preparation
+Change the variable type of `date` as a date variable and create `year` for further analysis.    
+
+```{r}
+# change the variable names
+colnames(crimes)<-c("city","state","region","date","population","murder_rate","violent_crime_rate","violent_crime_rate_pr","property_crime_rate","officer_assault_rate")
+
+# create year variable
+crimes$date<-as.Date(crimes$date,"%m-%d-%Y")
+crimes$year<-format(crimes$date,"%Y")
+view(crimes)
+```
+
+# first galance---Scatter plot 
+Let's start with examining the relationship between the violent crime rate and the property crime rate in the major cities. 
+
+## plotting by regions
+ 
+```{r}
+crimes%>%
+  ggplot(aes(x=violent_crime_rate,y=property_crime_rate, size=officer_assault_rate))+geom_point()
+
+crimes%>%
+  ggplot(aes(x=violent_crime_rate,y=property_crime_rate, col=region))+geom_point()
+```
+```{r}
+crimes%>%
+  ggplot(aes(x=violent_crime_rate,y=property_crime_rate,size=officer_assault_rate,col=region))+
+  geom_point(shape=1)
+```
+Note that Officer Assault Rate is the number of police officers killed or assaulted in the line of duty. This bubble chart now shows that police officers are in more danger (as shown in bigger circles) in cities with higher crime rates.
+
+
+## display in a panel
+
+```{r}
+crimes%>%
+  ggplot(aes(x=violent_crime_rate,y=property_crime_rate,size=officer_assault_rate,colour=region))+
+  geom_point(shape=1)+
+  facet_wrap(~region)
+```
+## Add a statistics layer
+
+We can also add some statistical analysis results into the charts. 
+
+Here we can see that in West Midwest region, as violent crime rate increases, the property crime rate grows sharply. Instead, the property crime rate changes slowly when the violent crime rate grows in East Midwest and South regions.  
+```{r}
+crimes%>%
+  ggplot(aes(x=violent_crime_rate,y=property_crime_rate,col=region))+
+  geom_point(shape=1)+
+  geom_smooth(method=loess)
+```
+# Compare the trend by different regions in the United States
+
+```{r}
+crimes%>%
+  ggplot(aes(x=violent_crime_rate,y=property_crime_rate,col = 2,alpha = 0.5))+
+  geom_point(shape=1)+
+  geom_smooth(method=lm,fullrange=TRUE)+
+  facet_wrap(~region)
+```
+# Histogram
+
+```{r}
+crimes%>%
+  ggplot(aes(x=property_crime_rate))+geom_histogram(binwidth=1000, colour="dark blue",fill="orange",alpha = 0.5)
+```
+## Overlapping histograms
+Use different colors by region and create histograms: 
+```{r}
+crimes%>%
+  ggplot(aes(x=property_crime_rate,fill=region))+geom_histogram(binwidth=100)
+
+crimes%>%
+  ggplot(aes(x=property_crime_rate,fill=region))+geom_histogram(binwidth=100,alpha=.5, position="identity")
+
+crimes%>%
+  ggplot(aes(x=property_crime_rate,fill=region))+geom_histogram(binwidth=100,position="stack")
+
+crimes%>%
+  ggplot(aes(x=property_crime_rate,fill=region))+geom_histogram(binwidth=1000,position="dodge")
+```
+## Facet
+Or create a chart for each region and display them in a panel. 
+```{r}
+crimes%>%
+  ggplot(aes(x=property_crime_rate,fill=region))+geom_histogram(binwidth=100,position="stack")+
+  facet_wrap(~region)
+```
+# Box plot
+Let's examine the distribution of property crime rate (which will be displayed in y-axis) by cities (which will be x-axis). Because we have too many cities in our datasets, let's focus on the cities in East Midwest and West Midwest. 
+
+```{r}
+crimes%>%
+  filter(region=="East Midwest"|region=="West Midwest")%>%
+  ggplot(aes(x=city,y=property_crime_rate,fill=city))+geom_boxplot()
+```
+# Time Series with Line Graph
+Let's examine the trend of violent crime rate of the cities in New York state. Let's first examine the data. 
+```{r}
+crimes%>%
+  filter(state=="NY")%>%
+  distinct(city)
+
+crimes%>%
+  filter(state=="NY")
+```
+For line graphs, the data points must be grouped so that it knows which points to connect. If you want to connect all points, set `group=1`. Because we want to connect the points by cities, we will set `group=city`. 
+
+```{r}
+crimes%>%
+  filter(state=="NY")%>%
+   ggplot(aes(x=year,y=violent_crime_rate, group=city,col=city))+geom_line()
+
+```
+#A series of scatterplot of property crime rate and violent rate in the cities in California, over time from 1994 to 2004. 
+
+```{r}
+ crimes%>%
+   filter(state=="CA")%>%
+   ggplot(aes(x= property_crime_rate,y= violent_crime_rate,col=city))+
+   geom_point(shape=1)+
+   facet_wrap(~year)
+
+```
+#A boxplot that shows the range of the officer assualt rates by the states in Pacific region, where each box represents a state. FYI, five states are categorized as Pacific in the dataset. 
+```{r}
+ crimes%>%
+   filter(region=="Pacific")%>%
+   ggplot(aes(x=state,y=officer_assault_rate,fill=state))+geom_boxplot()
+```
+Observations:
+1) excluding outliers in CA, a city in Alaska(AK) has the highest officer assault rate 
+
+2) According to our boxplot result, Alaska(AK) has the highest median value of officer assault rate in the entire dataset.
+
+
+#Scatterplots that show the relationship between the violent crime rate and the officer assault rate by the states in the Pacific region. 
+
+```{r}
+ crimes%>%
+   filter(region=="Pacific")%>%
+   ggplot(aes(x=violent_crime_rate,y=officer_assault_rate,col=1, alpha = 0.5))+
+   geom_point(shape=1)+
+   geom_smooth(method=lm,fullrange=TRUE)+
+   facet_wrap(~state)
+
+```
+```
+The two states Alaska(AK) and Washington(WA) in Pacific region shows the stronger positive correlation. 
